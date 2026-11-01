@@ -1,0 +1,19 @@
+cabal-version:      2.4
+name:               logiexpress
+version:            1.0.0
+synopsis:           Motor analítico de rutas aéreas LogiExpress (paradigma funcional)
+build-type:         Simple
+
+executable logiexpress
+    main-is:          Main.hs
+    other-modules:    Tipos
+                      Tiempo
+                      Parser
+                      Grafo
+                      Consultas
+                      Rutas
+                      Optimizacion
+    build-depends:    base >=4.14 && <5,
+                      directory
+    default-language: Haskell2010
+    ghc-options:      -Wall
