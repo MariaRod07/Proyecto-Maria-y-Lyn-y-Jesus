@@ -1,15 +1,11 @@
-# LogiExpress — Motor analítico de vuelos e itinerarios
-
-Asignatura: Tópicos Especiales de Programación (UCAB)
-Profesoras: Jannelly Bello / Noraimar Mora
+LogiExpress — Motor analítico de vuelos e itinerarios
 
 Motor de rutas aéreas entre ciudades implementado bajo dos paradigmas
 declarativos: **lógico (SWI-Prolog)** y **funcional (Haskell)**. Ambas
 soluciones leen la misma base de datos `vuelos.txt`, exponen el mismo menú
 interactivo en consola y resuelven los tres módulos del enunciado:
 
-| Módulo | Funcionalidad | Haskell | Prolog |
-|---|---|---|---|
+| Módulo | Funcionalidad | Haskell | Prolog | 
 | 1 | Carga dinámica y parseo de `vuelos.txt` | `Parser.hs`, `Grafo.hs` | `carga.pl` |
 | 1 | Conversión HH:MM ↔ minutos | `Tiempo.hs` | `tiempo.pl` |
 | 1 | TMC configurable, salidas/llegadas por ciudad | `Consultas.hs` | `consultas.pl` |
@@ -151,16 +147,6 @@ las capturas del informe:
 | Pto Ordaz → Porlamar, lunes, TMC = 120 | 1 ruta: Vlo#6+Vlo#9 (las esperas de 60 y 70 min ya no cumplen el TMC) |
 | Maiquetia → Maracaibo, lunes | 2 rutas: Vlo#10+Vlo#11 (Bs 8100, 180 min) y Vlo#17+Vlo#18 (Bs 14600, 225 min) |
 
-## Notas sobre codificación de caracteres
-
-Los mensajes de consola llevan acentos. En Linux/macOS ambos programas fuerzan
-UTF-8; en Windows respetan la página de códigos de la consola. Si en Windows se
-ven caracteres extraños, ejecutar antes `chcp 65001`.
-
 ## Estado del proyecto
 
-- [x] Módulo 1: carga dinámica, TMC, consultas básicas (Haskell y Prolog)
-- [x] Módulo 2: búsqueda de rutas con las cuatro restricciones (Haskell y Prolog)
-- [x] Módulo 3: optimización por costo y tiempo, reportes ordenados (Haskell y Prolog)
-- [x] Menú interactivo en ambos lenguajes
-- [ ] Informe Técnico Comparativo en `/docs` (entrega final: 08/11/2026, tag `v1.0-final`)
+- Empezando
