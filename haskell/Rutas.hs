@@ -42,3 +42,8 @@ rutasValidas tmc limite dia grafo desde hasta
           , dentroDelLimite (length tomados)
           , ruta <- dfs (destino v) (destino v : visitados) (Just v) (v : tomados)
           ]
+          
+    dentroDelLimite :: Int -> Bool
+    dentroDelLimite len = case limite of
+                            Nothing -> True
+                            Just k  -> len <= k
