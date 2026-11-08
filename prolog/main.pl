@@ -120,4 +120,166 @@ nombre_dia(lunes,     lunes).
 nombre_dia(martes,    martes).
 nombre_dia(miercoles, miercoles).
 nombre_dia(jueves,    jueves).
-nombre_dia(viernes
+nombre_dia(viernes,   viernes).
+nombre_dia(sabado,    sabado).
+nombre_dia(domingo,   domingo).
+
+pedir_limite(K) :-
+    leer_linea('Máximo de escalas K (Enter = sin límite): ', Texto),
+    (   Texto == ''
+    ->  K = sin_limite
+    ;   atom_number(Texto, K), integer(K), K >= 0
+    ->  true
+    ;   format("Valor inválido para K: ~w~n", [Texto]),
+        fail
+    ).
+
+pedir_busqueda(Origen, Destino, Dia, K) :-
+    pedir_ciudad('Ciudad origen: ', Origen),
+    pedir_ciudad('Ciudad destino: ', Destino),
+    (   Origen == Destino
+    ->  format("Origen y destino deben ser distintos.~n"), fail
+    ;   true
+    ),
+    pedir_dia(Dia),
+    pedir_limite(K).
+
+ejecutar('1') :- !,
+    leer_linea('Ruta del archivo [vuelos.txt]: ', Texto),
+    (   Texto == '' -> Archivo = 'vuelos.txt' ; Archivo = Texto ),
+    (   cargar_vuelos(Archivo)
+    ->  true
+    ;   format("No existe el archivo: ~w~n", [Archivo])
+    ).
+
+ejecutar('2') :- !,
+    tmc(Actual),
+    format(atom(Prompt), 'Nuevo TMC en minutos [~w]: ', [Actual]),
+    leer_linea(Prompt, Texto),
+    (   atom_number(Texto, Nuevo), configurar_tmc(Nuevo)
+    ->  format("TMC configurado en ~w min~n", [Nuevo])
+    ;   format("Valor inválido; se mantiene el TMC actual.~n")
+    ).
+
+ejecutar('3') :- !,
+    pedir_ciudad('Ciudad de salida: ', Ciudad),
+    salidas_desde(Ciudad, Vuelos),
+    format(atom(Titulo), 'Vuelos que salen de ~w', [Ciudad]),
+    listar_vuelos(Titulo, Vuelos).
+
+ejecutar('4') :- !,
+    pedir_ciudad('Ciudad de llegada: ', Ciudad),
+    llegadas_a(Ciudad, Vuelos),
+    format(atom(Titulo), 'Vuelos que llegan a ~w', [Ciudad]),
+    listar_vuelos(Titulo, Vuelos).
+
+ejecutar('5') :- !,
+    pedir_dia(Dia),
+    vuelos_del_dia(Dia, Vuelos),
+    format(atom(Titulo), 'Vuelos que operan el día ~w', [Dia]),
+    listar_vuelos(Titulo, Vuelos).
+
+ejecutar('6') :- !,
+    pedir_busqueda(Origen, Destino, Dia, K),
+    todas_las_rutas(Origen, Destino, Dia, K, Rutas),
+    length(Rutas, N),
+    encabezado_busqueda(Origen, Destino, Dia, K),
+    format("~w ruta(s) válida(s)~n", [N]),
+    mostrar_rutas(Rutas, 1).
+
+ejecutar('7') :- !,
+    pedir_busqueda(Origen, Destino, Dia, K),
+    todas_las_rutas(Origen, Destino, Dia, K, Rutas),
+    length(Rutas, N),
+    encabezado_busqueda(Origen, Destino, Dia, K),
+    format("~w ruta(s) evaluada(s)~n", [N]),
+    (   Rutas == []
+    ->  format("No existen rutas válidas.~n")
+    ;   mas_barata(Rutas, _, Barata),
+        format("-- Ruta de costo económico mínimo --~n"),
+        mostrar_ruta(1, Barata),
+        mas_rapida(Rutas, _, Rapida),
+        format("-- Ruta de menor tiempo total de viaje --~n"),
+        mostrar_ruta(1, Rapida)
+    ).
+
+ejecutar('8') :- !,
+    pedir_busqueda(Origen, Destino, Dia, K),
+    leer_linea('Ordenar por (c)osto o (t)iempo [c]: ', Criterio),
+    todas_las_rutas(Origen, Destino, Dia, K, Rutas),
+    downcase_atom(Criterio, CriterioMin),
+    (   sub_atom(CriterioMin, 0, 1, _, t)
+    ->  Titulo = 'tiempo total de viaje (mergesort)',
+        ordenar_por_tiempo(Rutas, Pares)
+    ;   Titulo = 'costo (quicksort)',
+        ordenar_por_costo(Rutas, Pares)
+    ),
+    encabezado_busqueda(Origen, Destino, Dia, K),
+    format("reporte ordenado por ~w~n", [Titulo]),
+    (   Pares == []
+    ->  format("No existen rutas válidas.~n")
+    ;   pares_a_valores(Pares, Ordenadas),
+        mostrar_rutas(Ordenadas, 1)
+    ).
+
+ejecutar('9') :- !,
+    ciudades(Ciudades),
+    length(Ciudades, N),
+    atomic_list_concat(Ciudades, ', ', Lista),
+    format("Ciudades (~w): ~w~n", [N, Lista]).
+
+ejecutar(Opcion) :-
+    format("Opción inválida: ~w~n", [Opcion]).
+
+encabezado_busqueda(Origen, Destino, Dia, K) :-
+    tmc(TMC),
+    (   K == sin_limite -> KTexto = 'sin límite' ; KTexto = K ),
+    format("~w -> ~w | ~w | TMC ~w min | K = ~w | ",
+           [Origen, Destino, Dia, TMC, KTexto]).
+
+listar_vuelos(Titulo, []) :- !,
+    format("~w: ninguno.~n", [Titulo]).
+listar_vuelos(Titulo, Vuelos) :-
+    length(Vuelos, N),
+    format("~w (~w):~n", [Titulo, N]),
+    forall(member(V, Vuelos), mostrar_vuelo('  ', V)).
+
+mostrar_vuelo(Sangria, vuelo(O, D, S, L, C, Codigo, Dias)) :-
+    minutos_a_hora(S, HS),
+    minutos_a_hora(L, HL),
+    formato_frecuencia(Dias, Frec),
+    atom_length(Sangria, Desplazamiento),
+    Col1 is Desplazamiento + 9,
+    Col2 is Col1 + 29,
+    Col3 is Col2 + 13,
+    Col4 is Col3 + 10,
+    format("~w~w~t~*|~w -> ~w~t~*|~w-~w~t~*|Bs ~w~t~*|[~w]~n",
+           [Sangria, Codigo, Col1, O, D, Col2, HS, HL, Col3, C, Col4, Frec]).
+
+formato_frecuencia(Dias, 'Diario') :-
+    todos_los_dias(Dias), !.
+formato_frecuencia(Dias, Frec) :-
+    findall(Abrev, ( member(Dia, Dias), abreviatura(Abrev, Dia) ), Abrevs),
+    atomic_list_concat(Abrevs, '-', Frec).
+
+mostrar_rutas([], _).
+mostrar_rutas([Ruta|Resto], N) :-
+    mostrar_ruta(N, Ruta),
+    N1 is N + 1,
+    mostrar_rutas(Resto, N1).
+
+mostrar_ruta(N, Ruta) :-
+    escalas(Ruta, Escalas),
+    costo_ruta(Ruta, Costo),
+    tiempo_ruta(Ruta, Tiempo),
+    formato_duracion(Tiempo, TiempoTexto),
+    format("Ruta ~w: ~w escala(s) | Costo total Bs ~w | Tiempo total ~w~n",
+           [N, Escalas, Costo, TiempoTexto]),
+    forall(member(V, Ruta), mostrar_vuelo('    ', V)),
+    esperas(Ruta, Esperas),
+    (   Esperas == []
+    ->  true
+    ;   maplist(formato_duracion, Esperas, Textos),
+        atomic_list_concat(Textos, ', ', Linea),
+        format("    Esperas en escalas: ~w~n", [Linea])
+    ).
