@@ -147,6 +147,4 @@ las capturas del informe:
 | Pto Ordaz → Porlamar, lunes, TMC = 120 | 1 ruta: Vlo#6+Vlo#9 (las esperas de 60 y 70 min ya no cumplen el TMC) |
 | Maiquetia → Maracaibo, lunes | 2 rutas: Vlo#10+Vlo#11 (Bs 8100, 180 min) y Vlo#17+Vlo#18 (Bs 14600, 225 min) |
 
-## Estado del proyecto
 
-- Empezando
