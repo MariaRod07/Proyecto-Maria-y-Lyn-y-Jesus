@@ -1,21 +1,3 @@
-{-|
-Module      : Main
-Description : Menú interactivo en consola (CLI) del motor LogiExpress.
-
-Este es el único módulo con I/O impuro: lectura del archivo, entrada del
-usuario y escritura en consola. Toda la lógica (parseo, grafo, búsqueda,
-optimización) vive en módulos puros que se invocan desde aquí.
-
-El estado de la sesión ('Estado') es un valor inmutable que se pasa como
-argumento al bucle del menú; cada operación que "cambia" algo (cargar un
-archivo, configurar el TMC) devuelve un 'Estado' nuevo.
-
-Ejecución:
-
-> ghc -O1 -o logiexpress Main.hs && ./logiexpress
-> runghc Main.hs
-> ghci Main.hs   -- luego  ghci> main
--}
 module Main (main) where
 
 import Control.Monad (filterM, forM_, unless)
@@ -33,28 +15,18 @@ import Rutas
 import Tiempo
 import Tipos
 
--- ---------------------------------------------------------------------------
--- Estado de la sesión
--- ---------------------------------------------------------------------------
-
 data Estado = Estado
-  { estTMC     :: Minutos   -- ^ Tiempo Mínimo de Conexión configurado
-  , estVuelos  :: [Vuelo]   -- ^ vuelos cargados (en el orden del archivo)
-  , estGrafo   :: Grafo     -- ^ lista de adyacencia derivada de estVuelos
-  , estArchivo :: FilePath  -- ^ archivo cargado ("" si no hay ninguno)
+  { estTMC     :: Minutos
+  , estVuelos  :: [Vuelo]
+  , estGrafo   :: Grafo
+  , estArchivo :: FilePath
   }
 
 tmcPorDefecto :: Minutos
 tmcPorDefecto = 45
 
--- | Ubicaciones donde se busca el archivo al iniciar: la carpeta actual y la
---   raíz del repositorio (cuando se ejecuta desde @/haskell@).
 archivosCandidatos :: [FilePath]
 archivosCandidatos = ["vuelos.txt", "../vuelos.txt"]
-
--- ---------------------------------------------------------------------------
--- Punto de entrada y bucle principal
--- ---------------------------------------------------------------------------
 
 main :: IO ()
 main = do
@@ -66,9 +38,6 @@ main = do
 configurarConsola :: IO ()
 configurarConsola = do
   hSetBuffering stdout NoBuffering
-  -- En Windows la consola usa su propia página de códigos y GHC la respeta;
-  -- en Linux/macOS forzamos UTF-8 para que los acentos se impriman bien
-  -- aunque la variable LANG no esté definida.
   unless (os == "mingw32") $ do
     hSetEncoding stdout utf8
     hSetEncoding stdin utf8
@@ -112,12 +81,6 @@ mostrarMenu estado = putStr $ unlines
   where
     nombreArchivo = if null (estArchivo estado) then "(ninguno)" else estArchivo estado
 
--- ---------------------------------------------------------------------------
--- Entrada de datos
--- ---------------------------------------------------------------------------
-
--- | Imprime el prompt y lee una línea recortada. Si la entrada se acabó
---   (EOF, por ejemplo al redirigir un archivo) devuelve el valor por defecto.
 leerLinea :: String -> String -> IO String
 leerLinea porDefecto prompt = do
   putStr prompt
@@ -128,8 +91,6 @@ leerLinea porDefecto prompt = do
 pedir :: String -> IO String
 pedir = leerLinea ""
 
--- | Interpreta el día escrito por el usuario: nombre completo (con o sin
---   acento, cualquier capitalización) o abreviatura del archivo (L, M, Mi...).
 leerDia :: String -> Maybe Dia
 leerDia texto = lookup (normalizar texto) tabla
   where
@@ -139,12 +100,10 @@ leerDia texto = lookup (normalizar texto) tabla
     sinAcento c = case c of
       'á' -> 'a'; 'é' -> 'e'; 'í' -> 'i'; 'ó' -> 'o'; 'ú' -> 'u'; _ -> c
 
--- | Límite de escalas: vacío = sin límite; entero no negativo = K.
 leerLimite :: String -> Either String (Maybe Int)
 leerLimite ""    = Right Nothing
 leerLimite texto = maybe (Left ("valor inválido para K: " ++ texto)) (Right . Just) (leerEntero texto)
 
--- | Pide una ciudad; devuelve 'Nothing' (tras informar) si no existe.
 pedirCiudad :: Estado -> String -> IO (Maybe Ciudad)
 pedirCiudad estado prompt = do
   texto <- pedir prompt
@@ -165,18 +124,12 @@ pedirLimite = do
 rechazar :: String -> IO (Maybe a)
 rechazar motivo = putStrLn ("Operación cancelada: " ++ motivo) >> return Nothing
 
--- | Encadena dos pasos de entrada: si el primero falla ('Nothing') el segundo
---   no se ejecuta. Es la composición monádica de @IO (Maybe a)@ escrita a
---   mano (equivale a @>>=@ de @MaybeT IO@).
 luego :: IO (Maybe a) -> (a -> IO (Maybe b)) -> IO (Maybe b)
 luego accion continuacion = accion >>= maybe (return Nothing) continuacion
 
--- | Pide una ciudad y ejecuta la acción solo si existe en el grafo.
 conCiudad :: Estado -> String -> (Ciudad -> IO ()) -> IO ()
 conCiudad estado prompt accion = pedirCiudad estado prompt >>= mapM_ accion
 
--- | Parámetros comunes a las búsquedas de rutas: origen, destino, día y K.
---   Se cancela en el primer dato inválido.
 pedirBusqueda :: Estado -> IO (Maybe (Ciudad, Ciudad, Dia, Maybe Int))
 pedirBusqueda estado =
   pedirCiudad estado "Ciudad origen: "  `luego` \o ->
@@ -185,10 +138,6 @@ pedirBusqueda estado =
   pedirDia                              `luego` \dia ->
   pedirLimite                           `luego` \k ->
   return (Just (o, d, dia, k))
-
--- ---------------------------------------------------------------------------
--- Opción 1 y 2: carga del archivo y configuración del TMC
--- ---------------------------------------------------------------------------
 
 cargarInicial :: Estado -> IO Estado
 cargarInicial estado = do
@@ -204,9 +153,6 @@ cargarArchivo estado = do
   texto <- pedir "Ruta del archivo [vuelos.txt]: "
   cargarDesde (if null texto then "vuelos.txt" else texto) estado
 
--- | Lectura impura del archivo seguida del parseo puro. El resultado del
---   parseo se evalúa antes de devolver el estado para que los errores se
---   reporten en este punto y no durante una consulta posterior.
 cargarDesde :: FilePath -> Estado -> IO Estado
 cargarDesde ruta estado = do
   existe <- doesFileExist ruta
@@ -219,9 +165,6 @@ cargarDesde ruta estado = do
       putStrLn ("Cargados " ++ show (length vs) ++ " vuelos desde " ++ ruta)
       return estado { estVuelos = vs, estGrafo = construirGrafo vs, estArchivo = ruta }
 
--- | 'hGetContents' es perezoso: devuelve la cadena antes de leer el archivo.
---   Forzar @length contenido@ con 'seq' obliga a leerlo completo antes de
---   cerrar el handle; sin esto, 'hClose' cerraría un archivo aún no leído.
 leerArchivoUtf8 :: FilePath -> IO String
 leerArchivoUtf8 ruta = do
   h <- openFile ruta ReadMode
@@ -236,10 +179,6 @@ configurarTMC estado = do
   case leerEntero texto of
     Just n  -> putStrLn ("TMC configurado en " ++ show n ++ " min") >> return estado { estTMC = n }
     Nothing -> putStrLn "Valor inválido; se mantiene el TMC actual." >> return estado
-
--- ---------------------------------------------------------------------------
--- Opciones 3, 4, 5 y 9: consultas básicas
--- ---------------------------------------------------------------------------
 
 consultarSalidas :: Estado -> IO ()
 consultarSalidas estado = conCiudad estado "Ciudad de salida: " $ \c ->
@@ -266,10 +205,6 @@ listarVuelos titulo [] = putStrLn (titulo ++ ": ninguno.")
 listarVuelos titulo vs = do
   putStrLn (titulo ++ " (" ++ show (length vs) ++ "):")
   mapM_ (putStrLn . ("  " ++) . mostrarVuelo) vs
-
--- ---------------------------------------------------------------------------
--- Opciones 6, 7 y 8: búsqueda de rutas y optimización
--- ---------------------------------------------------------------------------
 
 buscarRutas :: Estado -> IO ()
 buscarRutas estado = do
@@ -311,10 +246,6 @@ encabezadoBusqueda :: Ciudad -> Ciudad -> Dia -> Maybe Int -> Minutos -> String
 encabezadoBusqueda o d dia k tmc =
   o ++ " -> " ++ d ++ " | " ++ show dia ++ " | TMC " ++ show tmc ++ " min | K = "
     ++ maybe "sin límite" show k ++ " | "
-
--- ---------------------------------------------------------------------------
--- Presentación
--- ---------------------------------------------------------------------------
 
 mostrarVuelo :: Vuelo -> String
 mostrarVuelo v = intercalate "  "
